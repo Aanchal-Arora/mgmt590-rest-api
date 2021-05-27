@@ -1,9 +1,11 @@
 FROM tensorflow/tensorflow
 
-COPY requirements.txt . 
+FROM pytorch/pytorch
+
+ADD requirements.txt . 
 
 RUN pip install -r requirements.txt 
 
-COPY answer.py /app/answer.py
+COPY answer.py answer.py
 
-CMD ["python3", "/app/answer.py"]
+CMD ["python", "answer.py"]
