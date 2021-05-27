@@ -162,10 +162,10 @@ def answer():
             for i in model:
                 output = {
                     "timestamp": i[0],
-                    "modelname": i[1],
-                    "answer": i[2],
-                    "question": i[3],
-                    "context": i[4],
+                    "modelname": i[4],
+                    "answer": i[1],
+                    "question": i[2],
+                    "context": i[3],
                 }
                 listmodels.append(output)
         else:
@@ -177,10 +177,10 @@ def answer():
             for i in model:
                 output = {
                     "timestamp": i[0],
-                    "modelname": i[1],
-                    "answer": i[2],
-                    "question": i[3],
-                    "context": i[4],
+                    "modelname": i[4],
+                    "answer": i[1],
+                    "question": i[2],
+                    "context": i[3],
                 }
                 listmodels.append(output)
 
