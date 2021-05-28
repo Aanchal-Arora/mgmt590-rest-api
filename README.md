@@ -78,12 +78,15 @@ Route:
 https://aanchal-ktospphdaa-uc.a.run.app
  ```
 Dependencies: 
-transformers==4.6.1
-flask==1.1.2
-torch==1.8.1
+
+ transformers==4.6.1
+
+ flask==1.1.2
+
+ torch==1.8.1
   
 ## How to build and run the API locally via Docker or Flask
-The app runs locally through the localhost link on port 8080 and is accessed through Postman. All routes work in Postman.
+The app runs locally through the localhost link on port 8080 and is accessed through Postman. All routes work in Postman. For details check Flask documentation. https://flask.palletsprojects.com/en/1.0.x/api/
 
 ## Launching the API
 The API is launched using Flask. The address of the host is important before launching the API and The API can be hosted in the local machine and also using online services.
