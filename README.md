@@ -21,8 +21,7 @@ Route:
   GET /models
   ```
 
-The second route  
-Second route is used to enter a new model in the available lists of model. When the API receives the PUT request to the handler, the model name is extracted from the request and that particular model is made available to use hence. 
+The second route is used to enter a new model in the available lists of model. When the API receives the PUT request to the handler, the model name is extracted from the request and that particular model is made available to use hence. 
   
 Route: 
   ```
