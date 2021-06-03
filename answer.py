@@ -8,7 +8,7 @@ from flask import request, jsonify
 import psycopg2
 
 #create pem files
-file = open("/server-c.pem", "w")
+file = open("/server-ca.pem", "w")
 root_cert_variable=os.environ['PG_SSLROOTCERT']
 root_cert_variable=root_cert_variable.replace('@','=')
 file.write(root_cert_variable)
@@ -26,10 +26,10 @@ file.write(client_key)
 file.close()
 os.chmod("/client-key.pem",0o600)
 os.chmod("/client-cert.pem",0o600)
-os.chmod("/server-c.pem",0o600)
+os.chmod("/server-ca.pem",0o600)
 # Format DB connection information
 sslmode = "sslmode=verify-ca"
-sslrootcert = "sslrootcert=/server-c.pem"
+sslrootcert = "sslrootcert=/server-ca.pem"
 sslcert = "sslcert=/client-cert.pem"
 sslkey = "sslkey=/client-key.pem"
 hostaddr = "hostaddr={}".format(os.environ['PG_HOST'])
