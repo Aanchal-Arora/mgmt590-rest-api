@@ -1,11 +1,13 @@
+import os
 import time
+import sqlite3
+
 from transformers.pipelines import pipeline
 from flask import Flask
 from flask import request, jsonify
-import os
 import psycopg2
 
-# create pem files
+#create pem files
 file = open("/server-c.pem", "w")
 root_cert_variable=os.environ['PG_SSLROOTCERT']
 root_cert_variable=root_cert_variable.replace('@','=')
@@ -14,7 +16,6 @@ file.close()
 
 file = open("/client-cert.pem", "w")
 cert_variable=os.environ['PG_SSLCERT']
-cert_variable=cert_variable.replace('@','=')
 file.write(cert_variable)
 file.close()
 
@@ -26,34 +27,40 @@ file.close()
 os.chmod("/client-key.pem",0o600)
 os.chmod("/client-cert.pem",0o600)
 os.chmod("/server-c.pem",0o600)
-
-
+# Format DB connection information
 sslmode = "sslmode=verify-ca"
-sslrootcert = "sslrootcert={}".format(os.environ.get('PG_SSLROOTCERT'))
-sslcert = "sslcert={}".format(os.environ.get('PG_SSLCERT'))
-sslkey = "sslkey={}".format(os.environ.get('PG_SSLKEY'))
-hostaddr = "hostaddr={}".format(os.environ.get('PG_HOST'))
+sslrootcert = "sslrootcert=/server-c.pem"
+sslcert = "sslcert=/client-cert.pem"
+sslkey = "sslkey=/client-key.pem"
+hostaddr = "hostaddr={}".format(os.environ['PG_HOST'])
 user = "user=postgres"
-password = "password={}".format(os.environ.get('PG_PASSWORD'))
+password = "password={}".format(os.environ['PG_PASSWORD'])
 dbname = "dbname=aanchaldb"
+
 
 # Construct database connect string
 db_connect_string = " ".join([
-      sslmode,
-      sslrootcert,
-      sslcert,
-      sslkey,
-      hostaddr,
-      user,
-      password,
-      dbname
-    ])
+    sslmode,
+    sslrootcert,
+    sslcert,
+    sslkey,
+    hostaddr,
+    user,
+    password,
+    dbname
+])
 
 # Connect to your postgres DB
-con = psycopg2.connect(db_connect_string)
+# con = psycopg2.connect(db_connect_string)
 
 # Open a cursor to perform database operations
-cur = con.cursor()
+# cur = conn.cursor()
+# --------------#
+#  VARIABLES   #
+# --------------#
+
+# Create my flask app
+# app = Flask(__name__)
 
 # Create a variable that will hold our models in memory
 models = {}
@@ -61,19 +68,24 @@ models = {}
 # The database file
 db = 'answers.db'
 
+
+def test():
+    print("test")
+
+
 # --------------#
 #    ROUTES    #
 # --------------#
 
-# Define a handler for the / path, which
-# returns a message and allows Cloud Run to
-# health check the API.
 def create_app():
     app = Flask(__name__)
+
+    # Define a handler for the / path, which
+    # returns a message and allows Cloud Run to
+    # health check the API.
     @app.route("/")
     def hello_world():
         return "<p>The question answering API is healthy!</p>"
-
 
     # Define a handler for the /answer path, which
     # processes a JSON payload with a question and
@@ -87,11 +99,7 @@ def create_app():
         # Validate model name if given
         if request.args.get('model') != None:
             if not validate_model(request.args.get('model')):
-                out = {"question": None,
-                       "answer": "invalid model.",
-                       "context": None,
-                       "model": None}
-                return jsonify(out)
+                return "Model not found", 400
 
         # Answer the question
         answer, model_name = answer_question(request.args.get('model'),
@@ -121,7 +129,6 @@ def create_app():
         }
 
         return jsonify(out)
-
 
     # List historical answers from the database.
     @app.route("/answer", methods=['GET'])
@@ -157,7 +164,6 @@ def create_app():
 
         return jsonify(out)
 
-
     # List models currently available for inference
     @app.route("/models", methods=['GET'])
     def list_model():
@@ -171,7 +177,6 @@ def create_app():
             })
 
         return jsonify(models_loaded)
-
 
     # Add a model to the models available for inference
     @app.route("/models", methods=['PUT'])
@@ -205,7 +210,6 @@ def create_app():
 
         return jsonify(models_loaded)
 
-
     # Delete a model from the models available for inference
     @app.route("/models", methods=['DELETE'])
     def delete_model():
@@ -235,7 +239,6 @@ def create_app():
 
         return jsonify(models_loaded)
 
-
     # --------------#
     #  FUNCTIONS   #
     # --------------#
@@ -248,7 +251,6 @@ def create_app():
             model_names.append(m['name'])
 
         return model_name in model_names
-
 
     # Answer a question with a given model name
     def answer_question(model_name, question, context):
@@ -268,6 +270,14 @@ def create_app():
 
         return answer, model_name
 
+    # Database setup
+    con = psycopg2.connect(db_connect_string)
+    cur = con.cursor()
+    #cur.execute("DROP table answers")
+    cur.execute('''CREATE TABLE if not exists answers
+               (question text, context text, model text, answer text, timestamp int)''')
+    con.commit()
+    con.close()
     models = {
         "default": "distilled-bert",
         "models": [
@@ -281,20 +291,20 @@ def create_app():
             }
         ]
     }
+    return app
+    # Run main by default if running "python answer.py"
 
-    # Database setup
+
+if __name__ == '__main__':
+    # create app
+    app = create_app()
     con = psycopg2.connect(db_connect_string)
     cur = con.cursor()
-    cur.execute('''CREATE TABLE IF NOT EXISTS answers
+    cur.execute('''CREATE TABLE if not exists answers
                    (question text, context text, model text, answer text, timestamp int)''')
     con.commit()
-    con.close()
-
-    return app
-
-# Run main by default if running "python answer.py"
-if __name__ == '__main__':
     # Initialize our default model.
-
-    app = create_app()
+    # Run our Flask app and start listening for requests!
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)), threaded=True)
+
+
