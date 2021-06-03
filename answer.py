@@ -35,7 +35,7 @@ sslkey = "sslkey={}".format(os.environ.get('PG_SSLKEY'))
 hostaddr = "hostaddr={}".format(os.environ.get('PG_HOST'))
 user = "user=postgres"
 password = "password={}".format(os.environ.get('PG_PASSWORD'))
-dbname = "dbname=mgmt-qa-model"
+dbname = "dbname=aanchaldb"
 
 # Construct database connect string
 db_connect_string = " ".join([
