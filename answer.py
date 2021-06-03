@@ -16,6 +16,7 @@ file.close()
 
 file = open("/client-cert.pem", "w")
 cert_variable=os.environ['PG_SSLCERT']
+cert_variable=cert_variable.replace('@','=')
 file.write(cert_variable)
 file.close()
 
