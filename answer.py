@@ -1,43 +1,55 @@
 import os
 import time
-import sqlite3
-
+from google.cloud import storage
 from transformers.pipelines import pipeline
+import flask
 from flask import Flask
-from flask import request, jsonify
+from flask import request, jsonify, redirect
 import psycopg2
+import base64
 
-#create pem files
-file = open("/server-ca.pem", "w")
-root_cert_variable=os.environ['PG_SSLROOTCERT']
-root_cert_variable=root_cert_variable.replace('@','=')
+# create pem files
+file = open("/server-c.pem", "w")
+root_cert_variable = os.environ['PG_SSLROOTCERT']
+root_cert_variable = root_cert_variable.replace('@', '=')
 file.write(root_cert_variable)
 file.close()
 
+file = open("/creds.json", "wb")
+google = os.environ['GCS_CREDS']
+google = google.replace('@', '=')
+google = base64.b64decode(google)
+file.write(google)
+file.close()
+
 file = open("/client-cert.pem", "w")
-cert_variable=os.environ['PG_SSLCERT']
-cert_variable=cert_variable.replace('@','=')
+cert_variable = os.environ['PG_SSLCERT']
+cert_variable = cert_variable.replace('@', '=')
 file.write(cert_variable)
 file.close()
 
 file = open("/client-key.pem", "w")
-client_key=os.environ['PG_SSLKEY']
-client_key=client_key.replace('@','=')
+client_key = os.environ['PG_SSLKEY']
+client_key = client_key.replace('@', '=')
 file.write(client_key)
 file.close()
-os.chmod("/client-key.pem",0o600)
-os.chmod("/client-cert.pem",0o600)
-os.chmod("/server-ca.pem",0o600)
+
+os.chmod("/client-key.pem", 0o600)
+os.chmod("/client-cert.pem", 0o600)
+os.chmod("/server-c.pem", 0o600)
+os.chmod("/creds.json", 0o600)
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = '/creds.json'
+
 # Format DB connection information
 sslmode = "sslmode=verify-ca"
-sslrootcert = "sslrootcert=/server-ca.pem"
+sslrootcert = "sslrootcert=/server-c.pem"
 sslcert = "sslcert=/client-cert.pem"
 sslkey = "sslkey=/client-key.pem"
 hostaddr = "hostaddr={}".format(os.environ['PG_HOST'])
 user = "user=postgres"
 password = "password={}".format(os.environ['PG_PASSWORD'])
 dbname = "dbname=aanchaldb"
-
 
 # Construct database connect string
 db_connect_string = " ".join([
@@ -157,8 +169,8 @@ def create_app():
             out.append({
                 "question": row[0],
                 "context": row[1],
-                "answer": row[2],
-                "model": row[3],
+                "answer": row[3],
+                "model": row[2],
                 "timestamp": row[4]
             })
         con.close()
@@ -240,6 +252,52 @@ def create_app():
 
         return jsonify(models_loaded)
 
+    # define a new path to save the files
+    app.config["upload_files"] = './'
+    app.config["allowed_file_extensions"] = 'CSV'
+
+    def allowed_file(filename):
+        if not "." in filename:
+            return False
+        ext = filename.rsplit(".", 1)[1]
+
+        if ext.upper() in app.config["allowed_file_extensions"]:
+            return True
+        else:
+            return False
+
+    # define a new route for file uploads
+    @app.route('/upload', methods=['GET', 'POST'])
+    def upload():
+        global x
+        if flask.request.method == "POST":
+            x = []
+            if request.files:
+
+                file = request.files.getlist("file")
+                for f in file:
+                    if f.filename == "":
+                        print("File must have a name")
+                        x.append('File must have a name')
+                        return redirect(request.url)
+
+                    if not allowed_file(f.filename):
+                        print("Please upload a .csv file only.")
+                        x.append('Please upload a .csv file only.')
+
+                        return redirect(request.url)
+
+                    f.save(os.path.join(app.config['upload_files'], f.filename))
+                    client = storage.Client()
+                    bucket = client.get_bucket('psdp-assignment')
+                    blob = bucket.blob(f.filename)
+                    blob.upload_from_filename(f.filename)
+                    x.append('File uploaded')
+            else:
+                return "No file Chosen"
+
+        return str(x), 200
+
     # --------------#
     #  FUNCTIONS   #
     # --------------#
@@ -274,7 +332,7 @@ def create_app():
     # Database setup
     con = psycopg2.connect(db_connect_string)
     cur = con.cursor()
-    #cur.execute("DROP table answers")
+    # cur.execute("DROP table answers")
     cur.execute('''CREATE TABLE if not exists answers
                (question text, context text, model text, answer text, timestamp int)''')
     con.commit()
@@ -307,5 +365,3 @@ if __name__ == '__main__':
     # Initialize our default model.
     # Run our Flask app and start listening for requests!
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)), threaded=True)
-
-
